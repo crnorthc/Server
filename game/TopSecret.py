@@ -1,0 +1,2 @@
+FINNHUB_API_KEY = 'c39qqnaad3i9bcobhg00'
+POLY_KEY = 'b4XCWhIAVjd82VOpYwXKjL5S3j9epMy6'
