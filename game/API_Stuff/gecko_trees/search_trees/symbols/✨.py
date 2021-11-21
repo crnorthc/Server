@@ -1,0 +1,1 @@
+values ={'results': [{'id': 'sparkleswap-rewards', 'symbol': '✨', 'name': 'Sparkleswap Rewards', 'image': 'https://assets.coingecko.com/coins/images/13621/large/Sparkleswap_logo.png?1610360427', 'score': '1.42', 'match': 1}]}
