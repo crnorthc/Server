@@ -9,6 +9,7 @@ urlpatterns = [
     path('get/<str:code>/', GetGame.as_view()),
     path('live', GoLive.as_view()),
     path('join', Join.as_view()),
+    path('leave', Leave.as_view()),
     path('search-crypto', SearchCrypto.as_view()),
     path('edit-lineup', EditLineup.as_view()),
     path('edit-wager', EditWager.as_view()),

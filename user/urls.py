@@ -13,4 +13,6 @@ urlpatterns = [
     path('recent-game', MostRecentGame.as_view()),
     path('wallet', WalletInfo.as_view()),
     path('stats', Stats.as_view()),
+    path('history', History.as_view()),
+    path('watch', Watch.as_view())
 ]

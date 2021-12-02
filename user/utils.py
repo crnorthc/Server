@@ -124,8 +124,7 @@ def load_user(user):
     #   - user <user object>: user to be logged in
     # Description
     #   - returns a user's information
-    profile = Profile.objects.filter(user_id=user.id)
-    profile = profile[0]
+    profile = user_to_profile(user)
     stats = Stats.objects.filter(profile_id=profile.id)
     stats = stats[0]
 
@@ -222,6 +221,9 @@ def user_to_profile(user):
     profile = Profile.objects.filter(user_id=user.id)
     return profile[0]
 
+def get_watchlist(user):
+    profile = user_to_profile(user)
+    return profile.get_watchlist()
 
 '''
     Profile Helpers

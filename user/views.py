@@ -288,6 +288,7 @@ class WalletInfo(APIView):
 
         return Response({'wallet': current_games}, status=status.HTTP_200_OK)
 
+
 class Stats(APIView):
 
     def get(self, request):
@@ -319,6 +320,20 @@ class Stats(APIView):
         return Response({'best': {'player': best_player, 'game': best_game}, 'worst': {'player': worst_player, 'game': worst_game}}, status=status.HTTP_200_OK)
 
 
+class History(APIView):
+
+    def get(self, request):
+        players = PlayerHistory.objects.filter(user=request.user)
+        history = []
+
+        for player in players:
+            history.append({
+                'player': player.info(), 
+                'game': player.game.get_basic_info()
+            })
+
+        return Response({'History': history}, status=status.HTTP_200_OK)
+
 '''
     General
 '''
@@ -327,3 +342,20 @@ class LoadUser(APIView):
     def get(self, request):
         return Response({'user': load_user(request.user)}, status=status.HTTP_200_OK)
 
+
+class Watch(APIView):
+
+    def post(self, request, format=None):
+        id = request.data['id']
+        watchList = Watchlist.objects.filter(user=request.user, map_id=id)
+
+        if watchList.exists():
+            watchList[0].delete()
+        else:
+            watchList = Watchlist(user=request.user, map_id=id)
+            watchList.save()
+
+        return Response({'watchlist': get_watchlist(request.user)}, status=status.HTTP_200_OK)
+    
+    def get(self, request):
+        return Response({'watchlist': get_watchlist(request.user)}, status=status.HTTP_200_OK)

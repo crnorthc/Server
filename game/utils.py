@@ -271,3 +271,15 @@ def normalize_poirtfolios(data):
                 normalized[t][y] = data[y][-1]['close']
 
     return normalized
+
+def player_context(player):
+    if player.game.started:
+        return {
+            'rank': player.get_rank(),
+            'take': player.take()
+        }
+    else:
+        return {
+            'take': player.take(),
+            'allocation': '{:.1f}'.format((1 - (player.cash / 100000)) * 100)
+        }

@@ -125,8 +125,8 @@ class GetAll(APIView):
         if request.admin == None:
             Games = Game.objects.filter(live=True, ended=False)
         else:
-            Games = Game.objects.all()
-            #Games = Game.objects.filter(ended=False)
+            #Games = Game.objects.all()
+            Games = Game.objects.filter(ended=False)
 
         for game in Games:
             info = game.get_basic_info()
@@ -139,15 +139,18 @@ class MyGames(APIView):
     # Params
     #   - NONE
     # Description
-    #   - gets a user's games (future, present, past)
+    #   - gets a user's games (future and present)
     def get(self, request):    
         games = {}
 
         players = Player.objects.filter(user_id=request.user.id)
 
         for player in players:
-            info = player.game.get_basic_info()
-            games[info['code']] = info
+            if not player.game.ended:
+                info = player.game.get_basic_info()
+                info['wager'] = player.wager().amount
+                info['player'] = player_context(player)
+                games[info['code']] = info        
 
         return Response({'Success': games}, status=status.HTTP_200_OK)
 
@@ -196,25 +199,49 @@ class Join(APIView):
             if game.is_tier():
                 wager.tier = tier
             
+            game.pot += bet
+
             player.save()
             wager.save()
-
+            game.save()
             return Response({'Success': player.get_info()}, status=status.HTTP_200_OK)
         else:
             return Response({'Error': 'Insuficient Funds'}, status=status.HTTP_403_FORBIDDEN)
 
 
+class Leave(APIView):
+    
+    def post(self, request, format=None):
+        code = request.data['code']
+        game = Game.objects.filter(code=code)
+        game = game[0]
+
+        if game.starting or game.started:
+            return Response({'Error': 'Too Late'}, status=status.HTTP_403_FORBIDDEN)
+
+        player = Player.objects.filter(user=request.user, game=game)
+
+        player = player[0]
+        wager = player.wager().amount
+        unfreeze_funds(request.user, wager)
+
+        player.delete()
+
+        return Response({'Success': "Player Left"}, status=status.HTTP_200_OK)
+
+
 class EditLineup(APIView):
 
     def post(self, request, format=None):
+        print('here')
         code = request.data['code']
         allocation = request.data['allocation']
         id = request.data['id']
         game = code_to_game(code)
         player = user_to_player(request.user, game)
 
-        if current_time() - game.start_time() > 10:
-            return Response({'Error': 'Too Late'}, status=status.HTTP_403_FORBIDDEN)
+        # if current_time() - game.start_time() > 10:
+        #     return Response({'Error': 'Too Late'}, status=status.HTTP_403_FORBIDDEN)
 
         lineup = Lineup.objects.filter(player_id=player.id, map_id=id)
 
@@ -275,9 +302,9 @@ class EditWager(APIView):
         else:
             if enough_funds(request.user.id, wager):
                 if wager == 0:
-                    unfreeze_funds(request.user.id, wager)
+                    unfreeze_funds(request.user, wager)
                 else:
-                    freeze_funds(request.user.id, wager)
+                    freeze_funds(request.user, wager)
                 Wager.amount = wager
             else:
                 return Response({'Error': 'Insuficient Funds'}, status=status.HTTP_403_FORBIDDEN)

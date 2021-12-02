@@ -33,8 +33,6 @@ def get_split(game):
     
     return split
 
-
-
 def initialize_portfolios(game):
     players = game.players()
     conversions = base_conversions()
@@ -226,7 +224,7 @@ def finalize_scores(players):
 class Game(models.Model):
     name = models.CharField(max_length=50)
     type = models.CharField(max_length=15, default='Tiered')
-    split = models.CharField(max_length=12)
+    split = models.CharField(max_length=20)
     bet = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     code = models.CharField(max_length=8)
     league = models.CharField(max_length=40)
@@ -234,6 +232,7 @@ class Game(models.Model):
     starting = models.BooleanField(default=False)
     started = models.BooleanField(default=False)
     ended = models.BooleanField(default=False)
+    pot = models.IntegerField(default=0)
     creator = models.ForeignKey(Admin, on_delete=models.CASCADE)
 
     def get_basic_info(self):
@@ -250,7 +249,8 @@ class Game(models.Model):
             'players': len(self.players()),
             'split': self.split,
             'bet': self.bet,
-            'started': self.started
+            'started': self.started,
+            'pot': self.pot
         }
 
     def get_info(self):
@@ -268,12 +268,14 @@ class Game(models.Model):
             'split': self.split,
             'bet': self.bet,
             'live': self.live,
-            'started': self.started
+            'started': self.started,
+            'pot': self.pot
         }
         if self.started:
             players = self.players()
-            players = [{'player': x.user.username, 'worth': '{:.2f}'.format(x.get_worth())} for x in players]
-            temp['players_list'] = sorted(players, key=lambda d: d['worth'], reverse=True)
+            players = [{'player': x.user.username, 'worth': x.get_worth()} for x in players]
+            players = sorted(players, key=lambda d: d['worth'], reverse=True)
+            temp['players_list'] = [{'player': x['player'], 'worth': '{:.2f}'.format(x['worth'])} for x in players]
 
         return temp
 
@@ -303,6 +305,7 @@ class Game(models.Model):
 
     def start(self):
         self.starting = True
+        print('starting game')
         self.save()
         
         initialize_portfolios(self)
@@ -402,6 +405,27 @@ class Player(models.Model):
         wager = self.wager()
         return wager.tier
 
+    def get_rank(self):
+        players = self.game.players()
+
+        rankings = []
+        for player in players:
+            rankings.append({'player': player, 'score': player.get_worth()})
+        
+        rankings = sorted(rankings, key= lambda d: d['score'], reverse=True)
+
+        for i in range(len(rankings)):
+            if rankings[i]['player'] == self:
+                return {'rank': i + 1, 'score': rankings[i]['score']}
+
+    def take(self):
+        if self.game.is_tier():
+            return '{:.2f}'.format((self.game.pot / TIERED_SPLITS[self.game.split]) * TIER_PRIZE[self.tier()] * .97)
+        else:
+            if self.game.split == 'Top 10%':
+                return '{:.2f}'.format(self.wager().amount * 8)
+            else:
+                return '{:.2f}'.format(self.wager().amount * 2)
 
 class Wager(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
@@ -444,7 +468,6 @@ class Lineup(models.Model):
         })
 
         if self.open != None:
-            print(self.get_current_value())
             info.update(self.get_current_value())    
         
         return info
@@ -481,6 +504,7 @@ class PlayerHistory(models.Model):
     def info(self):
         history = {
             'score': '{:.2f}'.format(self.score),
+            'type': self.game.type,
             'ranking': self.ranking,
             'bet': self.bet,
             'won': '{:.2f}'.format(self.won),

@@ -28,14 +28,25 @@ def save_stats(game, payouts):
 
         stats = profile.get_stats()
         stats.total_games += 1
-        stats.total_bets += wager.amount
+        if player.game.is_tier():
+            stats.tiered_total_bets += wager.amount
+        else:
+            stats.mult_total_bets += wager.amount
 
         if player.id in payouts:
-            stats.games_won += 1
-            stats.amount_won += payouts[player.id]
+            if player.game.is_tier():
+                stats.tiered_games_won += 1
+                stats.tiered_amount_won += payouts[player.id]
+            else:
+                stats.mult_games_won += 1
+                stats.mult_amount_won += payouts[player.id]
         else:
-            stats.games_lost += 1
-            stats.amount_lost += wager.amount
+            if player.game.is_tier():
+                stats.tiered_games_lost += 1
+                stats.tiered_amount_lost += wager.amount
+            else:
+                stats.mult_games_lost += 1
+                stats.mult_amount_lost += wager.amount
 
         if game.is_tier():
             stats.tiers[wager.tier] += 1

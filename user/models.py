@@ -1,6 +1,16 @@
 from django.contrib.auth.models import User
 from game.trees.coin_map import map
+from game.trees.gecko_map import ids
+from .model_utils import *
 from django.db import models
+
+DEFAULT_TIERS = {
+    'ghost': 0,
+    'bronze': 0,
+    'silver': 0,
+    'gold': 0,
+    'diamond': 0
+}
 
 class IDToken(models.Model):
     # user - user corresponding to the uid token
@@ -35,46 +45,59 @@ class Profile(models.Model):
             stats.save()
             return stats
 
-DEFAULT_TIERS = {
-    'ghost': 0,
-    'bronze': 0,
-    'silver': 0,
-    'gold': 0,
-    'diamond': 0
-}
+    def get_watchlist(self):
+        watchings = Watchlist.objects.filter(user=self.user)
+        watchlist = {}
+    
+        for watching in watchings:
+            watchlist[watching.map_id] = map[watching.map_id]
+            watchlist[watching.map_id]['price'] = '{:.2f}'.format(usd_quote(ids[watching.map_id]))
+
+        return watchlist
+
 
 class Stats(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     total_games = models.IntegerField(default=0)
-    games_won = models.IntegerField(default=0)
-    games_lost = models.IntegerField(default=0)
-    total_bets = models.DecimalField(max_digits=17, decimal_places=8, null=True)
-    amount_won = models.DecimalField(max_digits=17, decimal_places=8, null=True)
-    amount_lost = models.DecimalField(max_digits=17, decimal_places=8, null=True)
+    tiered_games_won = models.IntegerField(default=0)
+    mult_games_won = models.IntegerField(default=0)
+    tiered_games_lost = models.IntegerField(default=0)
+    mult_games_lost = models.IntegerField(default=0)
+    tiered_total_bets = models.DecimalField(max_digits=17, decimal_places=8, null=True)
+    mult_total_bets = models.DecimalField(max_digits=17, decimal_places=8, null=True)
+    tiered_amount_won = models.DecimalField(max_digits=17, decimal_places=8, null=True)
+    tiered_amount_lost = models.DecimalField(max_digits=17, decimal_places=8, null=True)
+    mult_amount_won = models.DecimalField(max_digits=17, decimal_places=8, null=True)
+    mult_amount_lost = models.DecimalField(max_digits=17, decimal_places=8, null=True)
     tiers = models.JSONField(default=DEFAULT_TIERS)
     favorites = models.JSONField(default=dict)
 
     class Meta:
         db_table = 'Stats'
 
-    def top_4(self):
+    def top_10(self):
         favorites = []
 
         for favorite in self.favorites['crypto']:
             info = map[int(favorite)]
-            favorites.append({'name': info['name'],'symbol': info['symbol'],'allocation': self.favorites['crypto'][favorite]})
+            favorites.append({'logo': info['logo'], 'name': info['name'],'symbol': info['symbol'],'allocation': self.favorites['crypto'][favorite]})
 
         return sorted(favorites, key=lambda d: d['allocation'], reverse=True)
 
     def info(self):
         return {
             'total_games': self.total_games,
-            'games_won': self.games_won,
-            'games_lost': self.games_lost,
-            'total_bets': self.total_bets,
-            'amount_won': self.amount_won,
-            'amount_lost': self.amount_lost,
-            'favorites': self.top_4(),
+            'tiered_games_won': self.tiered_games_won,
+            'tiered_games_lost': self.tiered_games_lost,
+            'mult_games_won': self.mult_games_won,
+            'mult_games_lost': self.mult_games_lost,
+            'tiered_total_bets': '{:.2f}'.format(self.tiered_total_bets),
+            'mult_total_bets': '{:.2f}'.format(self.mult_total_bets),            
+            'tiered_amount_won': '{:.2f}'.format(self.tiered_amount_won),
+            'tiered_amount_lost': '{:.2f}'.format(self.tiered_amount_lost),
+            'mult_amount_won': '{:.2f}'.format(self.mult_amount_won),
+            'mult_amount_lost': '{:.2f}'.format(self.mult_amount_lost),
+            'favorites': self.top_10(),
             'tiers': self.tiers,
         }
 
@@ -93,3 +116,11 @@ class Frozen(models.Model):
 
     class Meta:
         db_table = 'Frozen'
+
+
+class Watchlist(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    map_id = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'Watchlist'
